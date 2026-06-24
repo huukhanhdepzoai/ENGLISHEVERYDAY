@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getAllTopics } from "../services/topicService";
+import { getAllTopics, createTopic } from "../services/topicService";
 import type { Topic } from "../services/topicService";
 import { getAllVocabulary } from "../services/vocabularyService";
 
@@ -13,6 +13,12 @@ const Dashboard = () => {
   const [vocabCount, setVocabCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newTopicName, setNewTopicName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [isSavingTopic, setIsSavingTopic] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -39,6 +45,37 @@ const Dashboard = () => {
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const handleCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalError(null);
+
+    if (!newTopicName.trim()) {
+      setModalError("Topic name is required.");
+      return;
+    }
+
+    setIsSavingTopic(true);
+    try {
+      const created = await createTopic({
+        topicName: newTopicName.trim(),
+        description: newDescription.trim() || undefined,
+      });
+      setTopics((prev) => [...prev, created]);
+      
+      // Reset form
+      setNewTopicName("");
+      setNewDescription("");
+      setIsCreateModalOpen(false);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Failed to create topic.";
+      setModalError(msg);
+    } finally {
+      setIsSavingTopic(false);
+    }
   };
 
   return (
@@ -131,7 +168,18 @@ const Dashboard = () => {
 
         {/* Topics list */}
         <section className="section">
-          <h2 className="section-title">Topics</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 className="section-title">Topics</h2>
+            {(user?.role === "admin" || user?.role === "teacher") && (
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => setIsCreateModalOpen(true)}
+                id="create-topic-btn"
+              >
+                + Create Topic
+              </button>
+            )}
+          </div>
           {isLoading ? (
             <div className="skeleton-list">
               {[1, 2, 3].map((i) => (
@@ -176,6 +224,70 @@ const Dashboard = () => {
           </div>
         </section>
       </main>
+
+      {isCreateModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h3 className="modal-title">Create New Topic</h3>
+              <button
+                className="modal-close"
+                onClick={() => setIsCreateModalOpen(false)}
+                disabled={isSavingTopic}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleCreateTopic} className="modal-form">
+              {modalError && <div className="alert alert-error">{modalError}</div>}
+              <div className="form-group">
+                <label className="form-label">
+                  Topic Name <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newTopicName}
+                  onChange={(e) => setNewTopicName(e.target.value)}
+                  placeholder="e.g. Travel, Business, Food"
+                  required
+                  disabled={isSavingTopic}
+                  id="new-topic-name-input"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="form-input form-textarea"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Short description of this topic"
+                  disabled={isSavingTopic}
+                  id="new-topic-desc-input"
+                />
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  disabled={isSavingTopic}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSavingTopic}
+                  id="submit-create-topic-btn"
+                >
+                  {isSavingTopic ? <span className="btn-spinner" /> : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
