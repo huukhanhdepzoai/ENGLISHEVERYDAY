@@ -5,7 +5,7 @@ const sequelize = new Sequelize(
   process.env.DB_USER || "sa",
   process.env.DB_PASSWORD || "123456Aa@",
   {
-    host: process.env.DB_HOST || "DESKTOP-HGTSJGP",
+    host: process.env.DB_HOST || "127.0.0.1",
     dialect: "mssql",
 
     //  FIX QUAN TRỌNG: chặn plural table name
